@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "DSA Revision Buddy",
+  "version": "1.0",
+  "description": "Helps you stay consistent with coding practice",
+  "permissions": [
+    "storage",
+    "alarms",
+    "notifications",
+    "activeTab" 
+  ],
+  "host_permissions": [
+    "https://leetcode.com/*"
+  ],
+  "action": {
+    "default_popup": "index.html",
+    "default_icon": {
+      "16": "icons/codeAnalyzer.png",
+      "32": "icons/codeAnalyzer.png",
+      "48": "icons/codeAnalyzer.png",
+      "128": "icons/codeAnalyzer.png"
+    }
+  },
+  "icons": {
+    "16": "icons/codeAnalyzer.png",
+    "32": "icons/codeAnalyzer.png",
+    "48": "icons/codeAnalyzer.png",
+    "128": "icons/codeAnalyzer.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://leetcode.com/*"],
+      "js": ["content.js"]
+    }
+  ],
+  "web_accessible_resources": [{
+    "resources": ["icons/*"],
+    "matches": ["https://leetcode.com/*"]
+  }],
+  "background": {
+    "service_worker": "background.js"
+  }
+}
