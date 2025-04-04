@@ -1,112 +1,173 @@
-// background.ts
-interface Reminder {
-  id: number;
-  time: number;
-  message: string;
-  frequency: 'once' | 'daily' | 'weekly';
-  selectedDays?: number[];
-}
+// function showNotification(problemText: any) {
+//   // Create URL with problem text as parameter
+//   const notificationUrl = chrome.runtime.getURL('notification.html') + 
+//                          `?problem=${encodeURIComponent(problemText)}`;
+  
+//   // Create a new window
+//   chrome.windows.create({
+//     url: notificationUrl,
+//     type: 'popup',
+//     width: 350,
+//     height: 250,
+//     focused: true
+//   });
 
-// Initialize storage and check for existing reminders
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.storage.local.get(['leetcodeReminders'], (result) => {
-    if (!result.leetcodeReminders) {
-      chrome.storage.local.set({ leetcodeReminders: [] });
-    } else {
-      // Reschedule any existing reminders
-      result.leetcodeReminders.forEach((reminder: Reminder) => {
-        scheduleReminder(reminder);
-      });
-    }
-  });
-});
+//   // Optional: Also show the system notification
+//   chrome.notifications.create({
+//     type: 'basic',
+//     iconUrl: 'icons/codeAnalyzer.png',
+//     title: 'DSA Revision Buddy',
+//     message: `Time to practice: ${problemText}`,
+//     priority: 2
+//   });
+// }
 
-// Message handler
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  switch (request.type) {
-    case 'SET_REMINDER':
-      scheduleReminder(request.reminder).then(success => {
-        sendResponse({ success });
-      });
-      return true;
-      
-    case 'CHECK_REMINDERS':
-      chrome.storage.local.get(['leetcodeReminders'], (result) => {
-        const reminders: Reminder[] = result.leetcodeReminders || [];
-        const now = Date.now();
-        const hasActive = reminders.some((r: Reminder) => 
-          r.frequency !== 'once' || r.time > now
-        );
-        sendResponse({ hasActiveReminders: hasActive });
-      });
-      return true;
-  }
-});
-
-// Alarm handler
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name.startsWith('leetcode-reminder-')) {
-    const reminderId = parseInt(alarm.name.replace('leetcode-reminder-', ''), 10);
+// // Handle messages from popup
+// chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+//   console.log("Message received:", request.type);
+  
+//   if (request.type === 'SET_NOTIFICATION') {
+//     const alarmName = `notification_${request.problemText}`;
     
-    chrome.storage.local.get(['leetcodeReminders'], (result) => {
-      const reminders = result.leetcodeReminders || [];
-      const reminder = reminders.find((r: Reminder) => r.id === reminderId);
-      
-      if (reminder) {
-        showNotification(reminder.message);
-        
-        // For once-only reminders, remove after triggering
-        if (reminder.frequency === 'once') {
-          const updatedReminders = reminders.filter((r: Reminder) => r.id !== reminderId);
-          chrome.storage.local.set({ leetcodeReminders: updatedReminders });
-        }
-      }
-    });
-  }
-});
+//     console.log(`Creating alarm for: ${alarmName} at ${new Date(request.notificationTime)}`);
+    
+//     chrome.alarms.create(alarmName, {
+//       when: request.notificationTime
+//     }, () => {
+//       if (chrome.runtime.lastError) {
+//         console.error("Alarm creation failed:", chrome.runtime.lastError);
+//         sendResponse({ success: false, error: chrome.runtime.lastError });
+//       } else {
+//         console.log("Alarm created successfully");
+//         sendResponse({ success: true });
+//       }
+//     });
+    
+//     return true; // Required to keep the message channel open for sendResponse
+//   }
+  
+//   // Add this for testing notifications manually
+//   if (request.type === 'TEST_NOTIFICATION') {
+//     showNotification("Test notification working!");
+//     sendResponse({ success: true });
+//     return true;
+//   }
+// });
 
-function showNotification(message: string) {
+// // Add alarm listener to trigger notifications when alarms fire
+// chrome.alarms.onAlarm.addListener((alarm) => {
+//   console.log("Alarm triggered:", alarm.name);
+  
+//   if (alarm.name.startsWith('notification_')) {
+//     // Extract problem text from alarm name
+//     const problemText = alarm.name.substring('notification_'.length);
+//     showNotification(problemText);
+//   }
+// });
+
+// // Make sure service worker stays active (for Manifest V3)
+// chrome.runtime.onInstalled.addListener(() => {
+//   console.log("Extension installed/updated");
+// });
+
+
+
+// new version
+function showNotification(problemText: string) {
+  const notificationUrl = chrome.runtime.getURL('notification.html') +
+    `?name=${encodeURIComponent(problemText)}&sound=beep.mp3&repeats=5&volume=1`;
+
+  // Create a popup window
+  chrome.windows.create({
+    url: notificationUrl,
+    type: 'popup',
+    width: 350,
+    height: 250,
+    focused: true
+  });
+
+  // Also show system notification
   chrome.notifications.create({
     type: 'basic',
-    iconUrl: chrome.runtime.getURL('icons/clock.png'),
-    title: 'LeetCode Reminder',
-    message: message,
+    iconUrl: 'icons/codeAnalyzer.png',
+    title: 'DSA Revision Buddy',
+    message: `Time to practice: ${problemText}`,
     priority: 2
   });
 }
 
-function scheduleReminder(reminder: Reminder): Promise<boolean> {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(['leetcodeReminders'], (result) => {
-      let reminders = result.leetcodeReminders || [];
-      
-      // Check if this reminder already exists
-      const existingIndex = reminders.findIndex((r: Reminder) => r.id === reminder.id);
-      if (existingIndex >= 0) {
-        reminders[existingIndex] = reminder;
-      } else {
-        reminders.push(reminder);
-      }
-      
-      chrome.storage.local.set({ leetcodeReminders: reminders });
+// Handle messages from popup or content script
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log("Message received:", request);
 
-      const alarmInfo: chrome.alarms.AlarmCreateInfo = {
-        when: reminder.time
-      };
+  // 🔁 Snooze logic
+  if (request.method === 'set-alarm') {
+    const name = request.name || `audio-${Date.now()}`;
+    const when = request.info?.when || Date.now() + 5 * 60 * 1000; // fallback 5 min
 
-      if (reminder.frequency === 'daily') {
-        alarmInfo.periodInMinutes = 24 * 60;
-      } else if (reminder.frequency === 'weekly') {
-        alarmInfo.periodInMinutes = 7 * 24 * 60;
-      }
+    chrome.alarms.create(name, { when });
 
-      chrome.alarms.create(`leetcode-reminder-${reminder.id}`, alarmInfo);
-      resolve(true);
+    sendResponse({ success: true });
+    return true;
+  }
+
+  // ❌ User clicked "done" — remove notification window/audio
+  if (request.method === 'remove-notification') {
+    // Send a message to all views (like popup) to close if matching name
+    chrome.runtime.sendMessage({
+      method: 'remove-notification',
+      name: request.name
     });
-  });
-}
+    sendResponse({ success: true });
+    return true;
+  }
 
-// Notification click handlers
-chrome.notifications.onClicked.addListener(() => {
-  chrome.tabs.create({ url: 'https://leetcode.com/problemset/all/' });
+  // ❌ User clicked "remove all"
+  if (request.method === 'remove-all-notifications') {
+    chrome.runtime.sendMessage({
+      method: 'remove-all-notifications'
+    });
+    sendResponse({ success: true });
+    return true;
+  }
+
+  // 🔄 Bring popup to front (optional)
+  if (request.method === 'bring-to-front') {
+    chrome.windows.getCurrent((window) => {
+      if (window?.id) {
+        chrome.windows.update(window.id, { focused: true });
+      }
+    });
+    return true;
+  }
+
+  // 🧪 Test notification manually
+  if (request.type === 'TEST_NOTIFICATION') {
+    showNotification("Test notification working!");
+    sendResponse({ success: true });
+    return true;
+  }
+
+  // 🕓 Set a reminder from content/popup
+  if (request.type === 'SET_NOTIFICATION') {
+    const alarmName = `notification_${request.problemText}`;
+    chrome.alarms.create(alarmName, { when: request.notificationTime });
+
+    sendResponse({ success: true });
+    return true;
+  }
+});
+
+// ⏰ When the alarm triggers
+chrome.alarms.onAlarm.addListener((alarm) => {
+  console.log("Alarm triggered:", alarm.name);
+
+  if (alarm.name.startsWith('notification_')) {
+    const problemText = decodeURIComponent(alarm.name.substring('notification_'.length));
+    showNotification(problemText);
+  }
+});
+
+chrome.runtime.onInstalled.addListener(() => {
+  console.log("Extension installed/updated");
 });

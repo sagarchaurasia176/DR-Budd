@@ -46,10 +46,10 @@ module.exports = {
         use: [MiniCssExtractPlugin.loader, 'css-loader'],
       },
       {
-        test: /\.(png|svg|jpg|jpeg|gif)$/i,
+        test: /\.(png|svg|jpg|jpeg|gif|mp3)$/i,  // Added mp3 to asset loader
         type: 'asset/resource',
         generator: {
-          filename: 'icons/[name][ext]',
+          filename: 'assets/[name][ext]',  // Changed to assets folder
         },
       },
     ],
@@ -61,9 +61,10 @@ module.exports = {
     }),
     new CopyPlugin({
       patterns: [
-        { from: 'public', to: 'index.html' },
-        { from: 'manifest.json', to: 'manifest.json' },
-        { from: 'icons', to: 'icons' }, // Copy icons to output
+        { from: 'public', to: '.' },  // Changed to copy all public files
+        { from: 'manifest.json', to: '.' },
+        { from: 'icons', to: 'icons' },
+        { from: 'src/assets/notification.mp3', to: 'assets/notification.mp3' }  // Moved inside CopyPlugin
       ],
     }),
   ],

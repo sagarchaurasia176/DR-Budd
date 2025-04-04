@@ -5,12 +5,14 @@
   "description": "Helps you stay consistent with coding practice",
   "permissions": [
     "storage",
-    "alarms",
-    "notifications",
-    "activeTab" 
+     "notifications",
+     "alarms",
+     "tabs"
+
   ],
   "host_permissions": [
-    "https://leetcode.com/*"
+    "https://leetcode.com/*",
+    "https://sagarchaurasia176.github.io/LeetcodeTimerReminder/*"
   ],
   "action": {
     "default_popup": "index.html",
@@ -33,11 +35,12 @@
       "js": ["content.js"]
     }
   ],
-  "web_accessible_resources": [{
-    "resources": ["icons/*"],
-    "matches": ["https://leetcode.com/*"]
-  }],
+"web_accessible_resources": [{
+  "resources": ["notification.html","notification.js", "assets/**"],
+  "matches": ["<all_urls>"]
+}],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   }
 }
